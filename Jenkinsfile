@@ -1,83 +1,83 @@
 pipeline {
-    agent any
-    environment {
-        VENV_PATH = ".venv"
-        SONAR_URL = "http://54.172.151.211:9000"
-        DOCKER_IMAGE = "vijayarajult2/django-todo:${BUILD_NUMBER}"
-        REGISTRY_CREDENTIALS = credentials('docker-cred')
-        GIT_REPO_NAME = "django-project-j"
-        GIT_USER_NAME = "vijayrajuyj1"
+    agent {
+        docker {
+            image 'python:3.12-slim' // Use a base image that has Python installed
+            args '-u root' // Run as root to avoid permission issues
+        }
     }
     stages {
         stage('Checkout') {
             steps {
-                echo 'Checking out the code'
-                // Uncomment the line below to enable Git checkout
+                sh 'echo "Checking out the code..."'
+                // Uncomment the next line to checkout the code
                 // git branch: 'main', url: 'http://github.com/iam-veeramalla/Jenkins-Zero-To-Hero.git'
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                echo 'Setting up Python virtual environment and installing dependencies'
-                // Create and activate a virtual environment
+                // Install Python venv and other dependencies
                 sh '''
-                    apt install python3.12-venv
-                    python3 -m venv ${VENV_PATH}
-                    source ${VENV_PATH}/bin/activate
-                    ${VENV_PATH}/bin/pip install -r requirements.txt
+                    apt-get update
+                    apt-get install -y python3-venv openjdk-17-jre openjdk-17-jre-headless
+                    python3 -m venv venv
+                    . venv/bin/activate
+                    pip install -r requirements.txt
                 '''
             }
         }
-
+        
         stage('Build and Test') {
             steps {
-                echo 'Running tests in the virtual environment'
                 sh '''
-                    source ${VENV_PATH}/bin/activate
-                    ${VENV_PATH}/bin/python manage.py runserver &
-                
-                    # Add your testing command here, e.g. pytest or manage.py test
-                    ${VENV_PATH}/bin/python manage.py 
+                    . venv/bin/activate
+                    python manage.py runserver &
+                    sleep 5 # Give the server time to start
+                    # You may want to run tests or perform additional commands here
                 '''
             }
         }
 
         stage('Static Code Analysis') {
+            environment {
+                SONAR_URL = "http://54.172.151.211:9000"
+            }
             steps {
-                echo 'Performing static code analysis with SonarQube...'
                 withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
                     sh '''
-                        npx sonar-scanner -Dsonar.projectKey=django-app \
-                        -Dsonar.sources=. \
-                        -Dsonar.host.url=${SONAR_URL} \
-                        -Dsonar.login=$SONAR_AUTH_TOKEN
+                        . venv/bin/activate
+                        npx sonar-scanner -Dsonar.login=$SONAR_AUTH_TOKEN -Dsonar.host.url=${SONAR_URL}
                     '''
                 }
             }
         }
 
         stage('Build and Push Docker Image') {
+            environment {
+                DOCKER_IMAGE = "vijayarajult2/django-todo:${BUILD_NUMBER}"
+                REGISTRY_CREDENTIALS = credentials('docker-cred')
+            }
             steps {
-                echo 'Building Docker image and pushing to Docker Hub...'
                 script {
                     sh '''
                         docker build -t ${DOCKER_IMAGE} .
-                        docker.withRegistry('https://index.docker.io/v1/', 'docker-cred') {
-                            docker.image("${DOCKER_IMAGE}").push()
-                        }
+                        docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+                        docker push ${DOCKER_IMAGE}
                     '''
                 }
             }
         }
 
         stage('Update Values Tag in Helm') {
+            environment {
+                GIT_REPO_NAME = "django-project-j"
+                GIT_USER_NAME = "vijayrajuyj1"
+            }
             steps {
-                echo 'Updating Helm values with new image tag...'
                 withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
                     sh '''
-                        git config user.email "vijayarajuyj1@gmail.com"
-                        git config user.name "vijayrajuyj1"
+                        git config --global user.email "vijayarajuyj1@gmail.com"
+                        git config --global user.name "vijayrajuyj1"
                         BUILD_NUMBER=${BUILD_NUMBER}
                         # Update the image tag in values.yaml
                         sed -i 's/tag: .*/tag: '"${BUILD_NUMBER}"'/g' helm/demo/values.yaml
@@ -87,15 +87,6 @@ pipeline {
                     '''
                 }
             }
-        }
-    }
-
-    post {
-        success {
-            echo 'Pipeline completed successfully!'
-        }
-        failure {
-            echo 'Pipeline failed.'
         }
     }
 }
