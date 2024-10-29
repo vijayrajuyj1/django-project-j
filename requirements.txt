@@ -1,0 +1,3 @@
+Django==3.2           # The Django framework
+gunicorn==20.1.0      # WSGI HTTP server for running Django in production
+psycopg2-binary==2.9.7 # PostgreSQL adapter (only if you’re using PostgreSQL)
