@@ -1,6 +1,6 @@
 pipeline {
     agent {
-        docker {
+        label 'java-label' {
             image 'python:3.12-slim' // Use a base image that has Python installed
             args '-u root' // Run as root to avoid permission issues
         }
