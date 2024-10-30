@@ -13,10 +13,10 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                // Install Python venv and other dependencies
+                // Install Python venv, Java, and other dependencies required for psycopg2
                 sh '''
                     apt-get update
-                    apt-get install -y python3-venv openjdk-17-jre openjdk-17-jre-headless
+                    apt-get install -y python3-venv openjdk-17-jre openjdk-17-jre-headless libpq-dev gcc
                     python3 -m venv venv
                     . venv/bin/activate
                     pip install -r requirements.txt
