@@ -17,8 +17,7 @@ pipeline {
                     sudo apt-get update
                     sudo apt-get install -y python3-venv openjdk-17-jre openjdk-17-jre-headless libpq-dev gcc
                     python3 -m venv venv
-                    . venv/bin/activate
-                    pip install -r requirements.txt
+                    ./venv/bin/pip install -r requirements.txt
                 '''
             }
         }
