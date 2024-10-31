@@ -39,7 +39,7 @@ pipeline {
                     // Activate the virtual environment and run Flake8
                     sh '''
                         . venv/bin/activate  # Activate the virtual environment
-                        flake8 . --max-line-length=88 --exclude venv/*  # Run Flake8 with line length limit and exclude venv
+                        flake8 . --max-line-length=88 --exclude venv/bin,venv/include,venv/lib,venv/lib64,venv/pyvenv.cfg   # Run Flake8 with line length limit and exclude venv
                     '''
                 }
             }
