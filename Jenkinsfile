@@ -34,24 +34,6 @@ pipeline {
                 '''
             }
         }
-        stage('Static Code Analysis') {
-            steps {
-                script {
-                    // Use the SonarScanner plugin instead of calling sonar-scanner directly
-                    withSonarQubeEnv('sonarqube') { // Use the name you provided in Jenkins for your SonarQube server
-                        sh '''
-                            . venv/bin/activate  # Activate the virtual environment
-                            sonar-scanner \
-                                -Dsonar.projectKey=your_project_key \
-                                -Dsonar.projectName="Your Project Name" \
-                                -Dsonar.projectVersion=${BUILD_NUMBER} \
-                                -Dsonar.sourceEncoding=UTF-8 \
-                                -Dsonar.sources=.
-                        '''
-                    }
-                }
-            }
-        }
         stage('Build and Push Docker Image') {
             environment {
                 DOCKER_IMAGE = "vijayarajult2/django-todo:${BUILD_NUMBER}"
