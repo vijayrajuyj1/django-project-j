@@ -36,7 +36,7 @@ pipeline {
         stage('Static Code Analysis') {
             environment {
                 SONAR_URL = "http://34.228.146.45:9000"  // Update with your actual SonarQube URL
-                SONAR_PROJECT_KEY = "vijay"  // Replace with your project key
+                SONAR_PROJECT_KEY = "django-project-j"  // Replace with your project key
                 SONAR_PROJECT_NAME = "Djanago-todo"  // Replace with your project name
                 SONAR_PROJECT_VERSION = "${BUILD_NUMBER}"  // Use build number as the version
             }
