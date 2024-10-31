@@ -44,7 +44,7 @@ pipeline {
                 withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
                     sh '''
                         . venv/bin/activate  # Activate the virtual environment
-                        sonar-sonar \
+                        sonar-scanner \
                             -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
                             -Dsonar.projectName=${SONAR_PROJECT_NAME} \
                             -Dsonar.projectVersion=${SONAR_PROJECT_VERSION} \
