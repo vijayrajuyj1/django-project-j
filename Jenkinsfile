@@ -19,8 +19,7 @@ pipeline {
                         sudo apt install python3-venv -y
                         python3 -m venv venv
                         . venv/bin/activate  # Activate the virtual environment
-                        # Install packages with user flag to avoid permission issues
-                        pip install --user Django==5.1.2
+                        python3 -m pip install --user Django==5.1.2  # Use python3 -m pip to install
                     '''
                 }
             }
@@ -31,9 +30,9 @@ pipeline {
                 // Build the project and create a JAR file
                 sh '''
                     . venv/bin/activate  # Activate the virtual environment
-                    python manage.py makemigrations
-                    python manage.py migrate
-                    python manage.py runserver 0.0.0.0:8000
+                    python3 manage.py makemigrations
+                    python3 manage.py migrate
+                    python3 manage.py runserver 0.0.0.0:8000
                 '''
             }
         }
@@ -45,6 +44,7 @@ pipeline {
                 withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
                     sh '''
                         . venv/bin/activate  # Activate the virtual environment
+                        python3 -m pip install --user mvn  # Install Maven if needed
                         mvn sonar:sonar -Dsonar.login=$SONAR_AUTH_TOKEN -Dsonar.host.url=$SONAR_URL
                     '''
                 }
