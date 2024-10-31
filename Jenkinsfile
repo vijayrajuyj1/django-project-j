@@ -3,21 +3,24 @@ pipeline {
         label 'java-label'
     }
     stages {
-        stage('Checkout') {
+        stage('Setup Environment') {
             steps {
-                echo "Checking out the code..."
-                // Uncomment the next line to checkout the code
-                // git branch: 'main', url: 'http://github.com/iam-veeramalla/Jenkins-Zero-To-Hero.git'
+                sh '''
+                    set -e
+                    if [ ! -d "venv" ]; then
+                        sudo apt-get update
+                        sudo apt-get install -y python3-venv openjdk-17-jre openjdk-17-jre-headless libpq-dev gcc
+                        python3 -m venv venv
+                    fi
+                '''
             }
         }
 
         stage('Install Dependencies') {
             steps {
                 sh '''
-                    sudo apt-get update
-                    sudo apt-get install -y python3-venv openjdk-17-jre openjdk-17-jre-headless libpq-dev gcc
-                    python3 -m venv venv
-                    ./venv/bin/pip install -r requirements.txt
+                    set -e
+                    venv/bin/pip install -r requirements.txt
                 '''
             }
         }
@@ -27,8 +30,8 @@ pipeline {
                 sh '''
                     . venv/bin/activate
                     python manage.py runserver &
-                    sleep 5 # Give the server time to start
-                    # Add test commands here if needed
+                    sleep 5
+                    # Insert additional test commands if necessary
                 '''
             }
         }
@@ -72,7 +75,6 @@ pipeline {
                     sh '''
                         git config --global user.email "vijayarajuyj1@gmail.com"
                         git config --global user.name "vijayrajuyj1"
-                        # Update the image tag in values.yaml
                         sed -i 's/tag: .*/tag: '${BUILD_NUMBER}'/g' helm/demo/values.yaml
                         git add helm/demo/values.yaml
                         git commit -m "Update deployment image to version ${BUILD_NUMBER}"
