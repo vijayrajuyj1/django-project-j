@@ -19,20 +19,17 @@ pipeline {
                         sudo apt install python3-venv -y
                         python3 -m venv venv
                         . venv/bin/activate  # Activate the virtual environment
-                        python3 -m pip install Django==5.1.2  # No --user flag needed
+                        python3 -m pip install Django==5.1.2 gunicorn==20.1.0  # Install Gunicorn
                     '''
                 }
             }
         }
-        stage('Run migrations and Build and Test') {
+        stage('Run migrations') {
             steps {
-                sh 'ls -ltr'
-                // Build the project and create a JAR file
                 sh '''
                     . venv/bin/activate  # Activate the virtual environment
                     python3 manage.py makemigrations
                     python3 manage.py migrate
-                    nohup python3 manage.py runserver 0.0.0.0:8000 
                 '''
             }
         }
@@ -93,6 +90,17 @@ pipeline {
                         git add helm/demochart/values.yaml
                         git commit -m "Update deployment image to version ${BUILD_NUMBER}"
                         git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
+                    '''
+                }
+            }
+        }
+        stage('Deploy to Production') {
+            steps {
+                script {
+                    sh '''
+                        # Start Gunicorn server
+                        . venv/bin/activate  # Activate the virtual environment
+                        nohup gunicorn --bind 0.0.0.0:8000 your_project_name.wsgi:application --daemon  # Replace with your project name
                     '''
                 }
             }
