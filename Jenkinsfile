@@ -20,7 +20,7 @@ pipeline {
                         python3 -m venv venv
                         . venv/bin/activate  # Activate the virtual environment
                         python3 -m pip install --upgrade pip  # Upgrade pip
-                        python3 -m pip install Django==5.1.2 gunicorn==20.1.0  # Install Django and Gunicorn
+                        python3 -m pip install Django==5.1.2 gunicorn==20.1.0 flake8==6.0.0  # Install Django, Gunicorn, and Flake8
                     '''
                 }
             }
@@ -37,6 +37,17 @@ pipeline {
             }
         }
         stage('Static Code Analysis') {
+            steps {
+                script {
+                    // Activate the virtual environment and run Flake8
+                    sh '''
+                        . venv/bin/activate  # Activate the virtual environment
+                        flake8 . --max-line-length=88  # Run Flake8 with a line length limit
+                    '''
+                }
+            }
+        }
+        stage('SonarQube Static Code Analysis') {
             environment {
                 SONAR_URL = "http://34.228.146.45:9000"  // Update with your actual SonarQube URL
                 SONAR_PROJECT_KEY = "django-todo-j"  // Replace with your project key
@@ -110,3 +121,4 @@ pipeline {
         }
     }
 }
+
