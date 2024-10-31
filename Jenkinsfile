@@ -14,10 +14,18 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 sh '''
+                    # Update packages and install dependencies
                     sudo apt-get update
                     sudo apt-get install -y python3-venv openjdk-17-jre openjdk-17-jre-headless libpq-dev gcc
+                    
+                    # Create a virtual environment
                     python3 -m venv venv
-                    chmod +x venv/bin/pip # Ensure pip is executable
+                    
+                    # Ensure pip has execute permissions
+                    chmod +x venv/bin/pip
+                    venv/bin/pip install --upgrade pip # Upgrade pip if necessary
+                    
+                    # Install dependencies
                     venv/bin/pip install -r requirements.txt
                 '''
             }
