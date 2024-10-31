@@ -19,7 +19,7 @@ pipeline {
                         sudo apt install python3-venv -y
                         python3 -m venv venv
                         . venv/bin/activate  # Activate the virtual environment
-                        python3 -m pip install Django==5.1.2 gunicorn==20.1.0  # Install Gunicorn
+                        python3 -m pip install Django==5.1.2 gunicorn==20.1.0 flake8  # Install Gunicorn
                     '''
                 }
             }
@@ -43,8 +43,8 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
                     sh '''
-                        . venv/bin/activate  # Activate the virtual environment
-                        sonar-scanner \
+                    
+                       flake8 sonar-scanner \
                             -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
                             -Dsonar.projectName=${SONAR_PROJECT_NAME} \
                             -Dsonar.projectVersion=${SONAR_PROJECT_VERSION} \
@@ -64,7 +64,7 @@ pipeline {
             steps {
                 script {
                     sh '''
-                        . venv/bin/activate  # Activate the virtual environment
+                       
                         docker build -t ${DOCKER_IMAGE} .
                         def dockerImage = docker.image("${DOCKER_IMAGE}")
                         docker.withRegistry('https://index.docker.io/v1/', 'docker-cred') {
@@ -99,7 +99,7 @@ pipeline {
                 script {
                     sh '''
                         # Start Gunicorn server
-                        . venv/bin/activate  # Activate the virtual environment
+                     
                         nohup gunicorn --bind 0.0.0.0:8000 your_project_name.wsgi:application --daemon  # Replace with your project name
                     '''
                 }
