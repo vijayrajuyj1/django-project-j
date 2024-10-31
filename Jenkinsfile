@@ -34,24 +34,22 @@ pipeline {
                 '''
             }
         }
-        stage('Build and Push Docker Image') {
-            environment {
-                DOCKER_IMAGE = "vijayarajult2/django-todo:${BUILD_NUMBER}"
-                REGISTRY_CREDENTIALS = credentials('docker-cred')
-            }
-            steps {
-                script {
-                    sh '''
-                        #!/bin/bash
-                        docker build -t ${DOCKER_IMAGE} .
-                        def dockerImage = docker.image("${DOCKER_IMAGE}")
-                        docker.withRegistry('https://index.docker.io/v1/', 'docker-cred') {
-                            dockerImage.push()
-                        }
-                    '''
-                }
+    stage('Build and Push Docker Image') {
+      environment {
+        DOCKER_IMAGE = "vijayarajult2/django-todo:${BUILD_NUMBER}"
+        // DOCKERFILE_LOCATION = "java-maven-sonar-argocd-helm-k8s/spring-boot-ap/Dockerfile"
+        REGISTRY_CREDENTIALS = credentials('docker-cred')
+      }
+      steps {
+        script {
+            sh 'docker build -t ${DOCKER_IMAGE} .'
+            def dockerImage = docker.image("${DOCKER_IMAGE}")
+            docker.withRegistry('https://index.docker.io/v1/', "docker-cred") {
+                dockerImage.push()
             }
         }
+      }
+    }
         stage('Update Values tag in Helm') {
             environment {
                 GIT_REPO_NAME = "django-todo-j"
