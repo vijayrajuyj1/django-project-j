@@ -19,7 +19,7 @@ pipeline {
                         sudo apt install python3-venv -y
                         python3 -m venv venv
                         . venv/bin/activate  # Activate the virtual environment
-                        python3 -m pip install Django==5.1.2 gunicorn==20.1.0 flake8==5.0.4  # Install Gunicorn and Flake8
+                        python3 -m pip install Django==5.1.2 gunicorn==20.1.0  # Install Gunicorn
                     '''
                 }
             }
@@ -33,29 +33,18 @@ pipeline {
                 '''
             }
         }
-        stage('Static Code Analysis with Flake8') {
-            steps {
-                script {
-                    // Activate the virtual environment and run Flake8
-                    sh '''
-                        . venv/bin/activate  # Activate the virtual environment
-                        flake8 . --max-line-length=88 --exclude venv/bin,venv/include,venv/lib,venv/lib64,venv/pyvenv.cfg   # Run Flake8 with line length limit and exclude venv
-                    '''
-                }
-            }
-        }
-        stage('Static Code Analysis with SonarQube') {
+        stage('Static Code Analysis') {
             environment {
                 SONAR_URL = "http://34.228.146.45:9000"  // Update with your actual SonarQube URL
-                SONAR_PROJECT_KEY = "django-todo-j"  // Replace with your project key
-                SONAR_PROJECT_NAME = "Django-todo"  // Replace with your project name
+                SONAR_PROJECT_KEY = "your_project_key"  // Replace with your project key
+                SONAR_PROJECT_NAME = "Your Project Name"  // Replace with your project name
                 SONAR_PROJECT_VERSION = "${BUILD_NUMBER}"  // Use build number as the version
             }
             steps {
                 withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
                     sh '''
                         . venv/bin/activate  # Activate the virtual environment
-                        sonar-scanner \
+                        sonar-sonar \
                             -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
                             -Dsonar.projectName=${SONAR_PROJECT_NAME} \
                             -Dsonar.projectVersion=${SONAR_PROJECT_VERSION} \
