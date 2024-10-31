@@ -13,46 +13,43 @@ pipeline {
         stage('Install dependencies') {
             steps {
                 script {
-                    // Use bash for the shell commands
                     sh '''
                         sudo apt update
                         sudo apt install python3-venv -y
                         python3 -m venv venv
                         . venv/bin/activate  # Activate the virtual environment
-                        python3 -m pip install Django==5.1.2 gunicorn==20.1.0  # Install Gunicorn
+                        python3 -m pip install Django==5.1.2  # No --user flag needed
                     '''
                 }
             }
         }
-        stage('Run migrations') {
+        stage('Run migrations and Build and Test') {
             steps {
+                sh 'ls -ltr'
+                // Build the project and create a JAR file
                 sh '''
                     . venv/bin/activate  # Activate the virtual environment
                     python3 manage.py makemigrations
                     python3 manage.py migrate
+                    nohup python3 manage.py runserver 0.0.0.0:8000 &
                 '''
             }
         }
         stage('Static Code Analysis') {
-            environment {
-                SONAR_URL = "http://34.228.146.45:9000"  // Update with your actual SonarQube URL
-                SONAR_PROJECT_KEY = "your_project_key"  // Replace with your project key
-                SONAR_PROJECT_NAME = "Your Project Name"  // Replace with your project name
-                SONAR_PROJECT_VERSION = "${BUILD_NUMBER}"  // Use build number as the version
-            }
             steps {
-                withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
-                    sh '''
-                        . venv/bin/activate  # Activate the virtual environment
-                        sonar-scanner \
-                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                            -Dsonar.projectName=${SONAR_PROJECT_NAME} \
-                            -Dsonar.projectVersion=${SONAR_PROJECT_VERSION} \
-                            -Dsonar.sourceEncoding=UTF-8 \
-                            -Dsonar.sources=. \
-                            -Dsonar.host.url=${SONAR_URL} \
-                            -Dsonar.login=$SONAR_AUTH_TOKEN
-                    '''
+                script {
+                    // Use the SonarScanner plugin instead of calling sonar-scanner directly
+                    withSonarQubeEnv('sonarqube') { // Use the name you provided in Jenkins for your SonarQube server
+                        sh '''
+                            . venv/bin/activate  # Activate the virtual environment
+                            sonar-scanner \
+                                -Dsonar.projectKey=your_project_key \
+                                -Dsonar.projectName="Your Project Name" \
+                                -Dsonar.projectVersion=${BUILD_NUMBER} \
+                                -Dsonar.sourceEncoding=UTF-8 \
+                                -Dsonar.sources=.
+                        '''
+                    }
                 }
             }
         }
@@ -90,17 +87,6 @@ pipeline {
                         git add helm/demochart/values.yaml
                         git commit -m "Update deployment image to version ${BUILD_NUMBER}"
                         git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
-                    '''
-                }
-            }
-        }
-        stage('Deploy to Production') {
-            steps {
-                script {
-                    sh '''
-                        # Start Gunicorn server
-                        . venv/bin/activate  # Activate the virtual environment
-                        nohup gunicorn --bind 0.0.0.0:8000 your_project_name.wsgi:application --daemon  # Replace with your project name
                     '''
                 }
             }
