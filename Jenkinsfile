@@ -33,13 +33,36 @@ pipeline {
                 '''
             }
         }
-        stage('Static Code Analysis') {
+        stage('Static Code Analysis with Flake8') {
             steps {
                 script {
                     // Activate the virtual environment and run Flake8
                     sh '''
                         . venv/bin/activate  # Activate the virtual environment
                         flake8 . --max-line-length=88 --exclude venv/*  # Run Flake8 with line length limit and exclude venv
+                    '''
+                }
+            }
+        }
+        stage('Static Code Analysis with SonarQube') {
+            environment {
+                SONAR_URL = "http://34.228.146.45:9000"  // Update with your actual SonarQube URL
+                SONAR_PROJECT_KEY = "django-todo-j"  // Replace with your project key
+                SONAR_PROJECT_NAME = "Django-todo"  // Replace with your project name
+                SONAR_PROJECT_VERSION = "${BUILD_NUMBER}"  // Use build number as the version
+            }
+            steps {
+                withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
+                    sh '''
+                        . venv/bin/activate  # Activate the virtual environment
+                        sonar-scanner \
+                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                            -Dsonar.projectName=${SONAR_PROJECT_NAME} \
+                            -Dsonar.projectVersion=${SONAR_PROJECT_VERSION} \
+                            -Dsonar.sourceEncoding=UTF-8 \
+                            -Dsonar.sources=. \
+                            -Dsonar.host.url=${SONAR_URL} \
+                            -Dsonar.login=$SONAR_AUTH_TOKEN
                     '''
                 }
             }
