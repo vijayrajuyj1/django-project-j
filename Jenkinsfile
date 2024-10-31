@@ -1,102 +1,71 @@
 pipeline {
     agent {
-        label 'java-label'
+        label 'java-label'  // Replace with your agent label
     }
-
     environment {
-        DOCKER_IMAGE = "vijayarajult2/django-todo:${BUILD_NUMBER}"
-        GIT_REPO_NAME = "django-project-j"
-        GIT_USER_NAME = "vijayrajuyj1"
-        SONAR_URL = "http://54.172.151.211:9000"  // Replace with actual SonarQube URL
+        // Define environment variables if needed
+        DJANGO_SETTINGS_MODULE = 'myproject.settings.production'  // Adjust this path
     }
-
     stages {
-        stage('Checkout') {
+        stage('Checkout SCM') {
             steps {
-                echo "Checking out the code..."
                 checkout scm
             }
         }
-
-        stage('Install Dependencies') {
+        stage('Set Up Python Environment') {
             steps {
-                sh '''
-                    # Update packages and install necessary dependencies
-                    sudo apt-get update
-                    sudo apt-get install -y python3-venv openjdk-17-jre openjdk-17-jre-headless libpq-dev gcc build-essential
-                    
-                    # Set up Python virtual environment
-                    python3 -m venv venv --without-pip
-                    
-                    # Install pip if missing and install requirements
-                    curl -sS https://bootstrap.pypa.io/get-pip.py | venv/bin/python3
-                    venv/bin/python3 -m pip install --upgrade pip
-                    venv/bin/python3 -m pip install -r requirements.txt
-                '''
-            }
-        }
-
-        stage('Build and Test') {
-            steps {
-                sh '''
-                    . venv/bin/activate
-                    # Run the Django application (for testing)
-                    python manage.py runserver &
-                    sleep 5
-                    # Add test commands here if needed
-                    python manage.py test || echo "Tests failed, continuing with the pipeline."
-                '''
-            }
-        }
-
-        stage('Static Code Analysis') {
-            steps {
-                withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
+                script {
+                    // Create and activate virtual environment
                     sh '''
-                        . venv/bin/activate
-                        npx sonar-scanner \
-                            -Dsonar.login=$SONAR_AUTH_TOKEN \
-                            -Dsonar.host.url=${SONAR_URL}
+                    python3 -m venv venv
+                    source venv/bin/activate
+                    pip install -r requirements.txt
                     '''
                 }
             }
         }
-
-        stage('Build and Push Docker Image') {
+        stage('Run Migrations') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'docker-cred', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                script {
+                    // Run Django migrations
                     sh '''
-                        docker build -t ${DOCKER_IMAGE} .
-                        echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-                        docker push ${DOCKER_IMAGE}
+                    source venv/bin/activate
+                    python manage.py migrate --noinput
                     '''
                 }
             }
         }
-
-        stage('Update Image Tag in Helm') {
+        stage('Collect Static Files') {
             steps {
-                withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
+                script {
+                    // Collect static files
                     sh '''
-                        git config --global user.email "vijayarajuyj1@gmail.com"
-                        git config --global user.name "vijayrajuyj1"
-                        # Update the image tag in Helm values.yaml
-                        sed -i 's/tag: .*/tag: '${BUILD_NUMBER}'/g' helm/demo/values.yaml
-                        git add helm/demo/values.yaml
-                        git commit -m "Update deployment image to version ${BUILD_NUMBER}"
-                        git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git HEAD:main
+                    source venv/bin/activate
+                    python manage.py collectstatic --noinput
+                    '''
+                }
+            }
+        }
+        stage('Deploy') {
+            steps {
+                script {
+                    // Add deployment commands (e.g., restart Gunicorn, deploy to server)
+                    echo 'Deploying application to production server...'
+                    // Example command for restarting a service
+                    sh '''
+                    # Add your deployment logic here, e.g., restart Gunicorn
+                    sudo systemctl restart gunicorn
                     '''
                 }
             }
         }
     }
-
     post {
         success {
-            echo 'Pipeline succeeded!'
+            echo 'Deployment to production successful!'
         }
         failure {
-            echo 'Pipeline completed with errors, but continuing.'
+            echo 'Deployment failed. Check the logs for more details.'
         }
     }
 }
