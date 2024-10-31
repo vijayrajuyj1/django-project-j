@@ -13,49 +13,48 @@ pipeline {
         stage('Install dependencies') {
             steps {
                 script {
+                    // Use bash for the shell commands
                     sh '''
                         sudo apt update
                         sudo apt install python3-venv -y
                         python3 -m venv venv
                         . venv/bin/activate  # Activate the virtual environment
                         python3 -m pip install --upgrade pip  # Upgrade pip
-                        python3 -m pip install Django==5.1.2 flake8  # Install Django and Flake8
-                        
-                        # Install SonarQube Scanner
-                        wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.8.0.2856-linux.zip
-                        unzip sonar-scanner-cli-4.8.0.2856-linux.zip
-                        sudo mv sonar-scanner-4.8.0.2856-linux /opt/sonar-scanner
-                        export PATH=$PATH:/opt/sonar-scanner/bin  # Add to PATH
+                        python3 -m pip install Django==5.1.2 gunicorn==20.1.0  # Install Django and Gunicorn
                     '''
                 }
             }
         }
-        stage('Run Static Code Analysis') {
+        stage('Run migrations') {
             steps {
                 script {
                     sh '''
                         . venv/bin/activate  # Activate the virtual environment
-                        flake8 .  # Run Flake8 on the project
+                        python3 manage.py makemigrations
+                        python3 manage.py migrate
                     '''
                 }
             }
         }
-        stage('Run Migrations and Build and Test') {
-            steps {
-                sh '''
-                    . venv/bin/activate  # Activate the virtual environment
-                    python3 manage.py makemigrations
-                    python3 manage.py migrate
-                    python3 manage.py runserver 0.0.0.0:8000
-                '''
+        stage('Static Code Analysis') {
+            environment {
+                SONAR_URL = "http://34.228.146.45:9000"  // Update with your actual SonarQube URL
+                SONAR_PROJECT_KEY = "django-todo-j"  // Replace with your project key
+                SONAR_PROJECT_NAME = "Django-todo"  // Replace with your project name
+                SONAR_PROJECT_VERSION = "${BUILD_NUMBER}"  // Use build number as the version
             }
-        }
-        stage('Static Code Analysis with SonarQube') {
             steps {
-                script {
+                withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
                     sh '''
                         . venv/bin/activate  # Activate the virtual environment
-                        sonar-scanner -Dsonar.projectKey=django-project-j -Dsonar.projectName=Django-todo -Dsonar.projectVersion=${BUILD_NUMBER} -Dsonar.sourceEncoding=UTF-8 -Dsonar.sources=. -Dsonar.host.url=http://34.228.146.45:9000 -Dsonar.login=$SONAR_AUTH_TOKEN
+                        sonar-scanner \
+                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                            -Dsonar.projectName=${SONAR_PROJECT_NAME} \
+                            -Dsonar.projectVersion=${SONAR_PROJECT_VERSION} \
+                            -Dsonar.sourceEncoding=UTF-8 \
+                            -Dsonar.sources=. \
+                            -Dsonar.host.url=${SONAR_URL} \
+                            -Dsonar.login=$SONAR_AUTH_TOKEN
                     '''
                 }
             }
@@ -80,7 +79,7 @@ pipeline {
         }
         stage('Update Values Tag in Helm') {
             environment {
-                GIT_REPO_NAME = "petclinic-02"
+                GIT_REPO_NAME = "django-todo-j"
                 GIT_USER_NAME = "vijayrajuyj1"
             }
             steps {
@@ -94,6 +93,17 @@ pipeline {
                         git add helm/demochart/values.yaml
                         git commit -m "Update deployment image to version ${BUILD_NUMBER}"
                         git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
+                    '''
+                }
+            }
+        }
+        stage('Deploy to Production') {
+            steps {
+                script {
+                    sh '''
+                        # Start Gunicorn server
+                        . venv/bin/activate  # Activate the virtual environment
+                        nohup gunicorn --bind 0.0.0.0:8000 your_project_name.wsgi:application --daemon  # Replace 'your_project_name' with the actual project name
                     '''
                 }
             }
