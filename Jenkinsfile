@@ -52,7 +52,7 @@ pipeline {
     }
         stage('Update Values tag in Helm') {
             environment {
-                GIT_REPO_NAME = "django-todo-j"
+                GIT_REPO_NAME = "django-project-j"
                 GIT_USER_NAME = "vijayrajuyj1"
             }
             steps {
