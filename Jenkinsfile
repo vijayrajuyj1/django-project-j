@@ -2,7 +2,6 @@ pipeline {
     agent {
         label 'java-label'
     }
-
     stages {
         stage('Checkout') {
             steps {
@@ -11,8 +10,7 @@ pipeline {
                 // git branch: 'main', url: 'http://github.com/iam-veeramalla/Jenkins-Zero-To-Hero.git'
             }
         }
-
-        stage('Install Dependencies') {
+        stage('Install dependencies') {
             steps {
                 script {
                     // Use bash for the shell commands
@@ -26,34 +24,41 @@ pipeline {
                 }
             }
         }
-
-        stage('Run Migrations and Start Server') {
+        stage('Run migrations and Build and Test') {
             steps {
                 sh 'ls -ltr'
-                // Run migrations and start the server in detached mode
+                // Build the project and create a JAR file
                 sh '''
                     . venv/bin/activate  # Activate the virtual environment
                     python3 manage.py makemigrations
                     python3 manage.py migrate
-                    nohup python3 manage.py runserver 0.0.0.0:8000 &  # Run server in detached mode
+                    python3 manage.py runserver 0.0.0.0:8000 --detach
                 '''
             }
         }
-
         stage('Static Code Analysis') {
             environment {
-                SONAR_URL = "http://34.228.146.45:9000"
+                SONAR_URL = "http://34.228.146.45:9000"  // Update with your actual SonarQube URL
+                SONAR_PROJECT_KEY = "your_project_key"  // Replace with your project key
+                SONAR_PROJECT_NAME = "Your Project Name"  // Replace with your project name
+                SONAR_PROJECT_VERSION = "${BUILD_NUMBER}"  // Use build number as the version
             }
             steps {
                 withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
                     sh '''
                         . venv/bin/activate  # Activate the virtual environment
-                        mvn sonar:sonar -Dsonar.login=$SONAR_AUTH_TOKEN -Dsonar.host.url=$SONAR_URL
+                        sonar-scanner \
+                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                            -Dsonar.projectName=${SONAR_PROJECT_NAME} \
+                            -Dsonar.projectVersion=${SONAR_PROJECT_VERSION} \
+                            -Dsonar.sourceEncoding=UTF-8 \
+                            -Dsonar.sources=. \
+                            -Dsonar.host.url=${SONAR_URL} \
+                            -Dsonar.login=$SONAR_AUTH_TOKEN
                     '''
                 }
             }
         }
-
         stage('Build and Push Docker Image') {
             environment {
                 DOCKER_IMAGE = "vijayarajult2/django-todo:${BUILD_NUMBER}"
@@ -72,8 +77,7 @@ pipeline {
                 }
             }
         }
-
-        stage('Update Values Tag in Helm') {
+        stage('Update Values tag in Helm') {
             environment {
                 GIT_REPO_NAME = "petclinic-02"
                 GIT_USER_NAME = "vijayrajuyj1"
