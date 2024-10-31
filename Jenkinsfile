@@ -2,6 +2,7 @@ pipeline {
     agent {
         label 'java-label'
     }
+
     stages {
         stage('Checkout') {
             steps {
@@ -10,7 +11,8 @@ pipeline {
                 // git branch: 'main', url: 'http://github.com/iam-veeramalla/Jenkins-Zero-To-Hero.git'
             }
         }
-        stage('Install dependencies') {
+
+        stage('Install Dependencies') {
             steps {
                 script {
                     // Use bash for the shell commands
@@ -24,18 +26,20 @@ pipeline {
                 }
             }
         }
-        stage('Run migrations and Build and Test') {
+
+        stage('Run Migrations and Start Server') {
             steps {
                 sh 'ls -ltr'
-                // Build the project and create a JAR file
+                // Run migrations and start the server in detached mode
                 sh '''
                     . venv/bin/activate  # Activate the virtual environment
                     python3 manage.py makemigrations
                     python3 manage.py migrate
-                    python3 manage.py runserver 0.0.0.0:8000
+                    nohup python3 manage.py runserver 0.0.0.0:8000 &  # Run server in detached mode
                 '''
             }
         }
+
         stage('Static Code Analysis') {
             environment {
                 SONAR_URL = "http://34.228.146.45:9000"
@@ -49,6 +53,7 @@ pipeline {
                 }
             }
         }
+
         stage('Build and Push Docker Image') {
             environment {
                 DOCKER_IMAGE = "vijayarajult2/django-todo:${BUILD_NUMBER}"
@@ -67,7 +72,8 @@ pipeline {
                 }
             }
         }
-        stage('Update Values tag in Helm') {
+
+        stage('Update Values Tag in Helm') {
             environment {
                 GIT_REPO_NAME = "petclinic-02"
                 GIT_USER_NAME = "vijayrajuyj1"
