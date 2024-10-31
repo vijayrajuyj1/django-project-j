@@ -6,34 +6,46 @@ pipeline {
         stage('Checkout') {
             steps {
                 sh 'echo passed'
+                // Uncomment the following line to check out the repository
                 // git branch: 'main', url: 'http://github.com/iam-veeramalla/Jenkins-Zero-To-Hero.git'
             }
         }
-        stage('Install dependencies') { // Removed extra spaces in stage name
-            steps { // Fixed spelling of 'steps'
-                sh 'sudo apt update'
-                sh 'sudo apt install python3-venv -y'
-                sh 'python3 -m venv venv'
-                sh 'source venv/bin/activate'
-                sh 'pip install Django==5.1.2'
+        stage('Install dependencies') {
+            steps {
+                script {
+                    // Use bash for the shell commands
+                    sh '''
+                        sudo apt update
+                        sudo apt install python3-venv -y
+                        python3 -m venv venv
+                        . venv/bin/activate  # Activate the virtual environment
+                        pip install Django==5.1.2
+                    '''
+                }
             }
         }
         stage('Run migrations and Build and Test') {
             steps {
                 sh 'ls -ltr'
                 // Build the project and create a JAR file
-                sh 'python manage.py makemigrations'
-                sh 'python manage.py migrate'
-                sh 'python manage.py runserver 0.0.0.0:8000'
+                sh '''
+                    . venv/bin/activate  # Activate the virtual environment
+                    python manage.py makemigrations
+                    python manage.py migrate
+                    python manage.py runserver 0.0.0.0:8000
+                '''
             }
         }
         stage('Static Code Analysis') {
             environment {
-                SONAR_URL = "http://34.228.146.45:9000" // Corrected the port syntax
+                SONAR_URL = "http://34.228.146.45:9000"
             }
             steps {
                 withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
-                    sh 'mvn sonar:sonar -Dsonar.login=$SONAR_AUTH_TOKEN -Dsonar.host.url=$SONAR_URL'
+                    sh '''
+                        . venv/bin/activate  # Activate the virtual environment
+                        mvn sonar:sonar -Dsonar.login=$SONAR_AUTH_TOKEN -Dsonar.host.url=$SONAR_URL
+                    '''
                 }
             }
         }
@@ -44,11 +56,14 @@ pipeline {
             }
             steps {
                 script {
-                    sh 'docker build -t ${DOCKER_IMAGE} .'
-                    def dockerImage = docker.image("${DOCKER_IMAGE}")
-                    docker.withRegistry('https://index.docker.io/v1/', 'docker-cred') {
-                        dockerImage.push()
-                    }
+                    sh '''
+                        . venv/bin/activate  # Activate the virtual environment
+                        docker build -t ${DOCKER_IMAGE} .
+                        def dockerImage = docker.image("${DOCKER_IMAGE}")
+                        docker.withRegistry('https://index.docker.io/v1/', 'docker-cred') {
+                            dockerImage.push()
+                        }
+                    '''
                 }
             }
         }
@@ -74,4 +89,3 @@ pipeline {
         }
     }
 }
-
