@@ -16,7 +16,7 @@ pipeline {
                 sh '''
                     # Update packages and install dependencies
                     sudo apt-get update
-                    sudo apt-get install -y python3-venv openjdk-17-jre openjdk-17-jre-headless libpq-dev gcc
+                    sudo apt-get install -y python3-venv openjdk-17-jre openjdk-17-jre-headless libpq-dev gcc build-essential
                     
                     # Create a virtual environment in the workspace
                     python3 -m venv venv --without-pip
@@ -25,7 +25,7 @@ pipeline {
                     curl -sS https://bootstrap.pypa.io/get-pip.py | venv/bin/python3
                     venv/bin/python3 -m pip install --upgrade pip
                     
-                    # Install dependencies
+                    # Install dependencies, including psycopg2-binary
                     venv/bin/python3 -m pip install -r requirements.txt
                 '''
             }
@@ -89,6 +89,4 @@ pipeline {
                     '''
                 }
             }
-        }
-    }
-}
+    
