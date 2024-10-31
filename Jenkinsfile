@@ -19,7 +19,8 @@ pipeline {
                         sudo apt install python3-venv -y
                         python3 -m venv venv
                         . venv/bin/activate  # Activate the virtual environment
-                        pip install Django==5.1.2
+                        # Install packages with user flag to avoid permission issues
+                        pip install --user Django==5.1.2
                     '''
                 }
             }
