@@ -1,71 +1,79 @@
 pipeline {
     agent {
-        label 'java-label'  // Replace with your agent label
+        label 'java-label'
     }
+
     environment {
-        // Define environment variables if needed
-        DJANGO_SETTINGS_MODULE = 'myproject.settings.production'  // Adjust this path
+        DOCKER_IMAGE = "vijayarajult2/django-todo:${BUILD_NUMBER}"
+        GIT_REPO_NAME = "django-project-j"
+        GIT_USER_NAME = "vijayrajuyj1"
+        SONAR_URL = "http://54.172.151.211:9000"  // Replace with actual SonarQube URL
     }
+
     stages {
-        stage('Checkout SCM') {
+        stage('Checkout') {
             steps {
+                echo "Checking out the code..."
                 checkout scm
             }
         }
-        stage('Set Up Python Environment') {
+
+        stage('Static Code Analysis') {
             steps {
-                script {
-                    // Create and activate virtual environment
+                withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
                     sh '''
-                    python3 -m venv venv
-                    source venv/bin/activate
-                    pip install -r requirements.txt
+                        # Activate virtual environment if needed
+                        # . venv/bin/activate
+                        npx sonar-scanner \
+                            -Dsonar.login=$SONAR_AUTH_TOKEN \
+                            -Dsonar.host.url=${SONAR_URL}
                     '''
                 }
             }
         }
-        stage('Run Migrations') {
+
+        stage('Build and Push Docker Image') {
             steps {
-                script {
-                    // Run Django migrations
+                withCredentials([usernamePassword(credentialsId: 'docker-cred', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
                     sh '''
-                    source venv/bin/activate
-                    python manage.py migrate --noinput
+                        # Build Docker image
+                        docker build -t ${DOCKER_IMAGE} .
+                        
+                        # Log in to Docker registry
+                        echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+                        
+                        # Push Docker image to registry
+                        docker push ${DOCKER_IMAGE}
                     '''
                 }
             }
         }
-        stage('Collect Static Files') {
+
+        stage('Update Image Tag in Helm') {
             steps {
-                script {
-                    // Collect static files
+                withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
                     sh '''
-                    source venv/bin/activate
-                    python manage.py collectstatic --noinput
-                    '''
-                }
-            }
-        }
-        stage('Deploy') {
-            steps {
-                script {
-                    // Add deployment commands (e.g., restart Gunicorn, deploy to server)
-                    echo 'Deploying application to production server...'
-                    // Example command for restarting a service
-                    sh '''
-                    # Add your deployment logic here, e.g., restart Gunicorn
-                    sudo systemctl restart gunicorn
+                        # Configure Git
+                        git config --global user.email "vijayarajuyj1@gmail.com"
+                        git config --global user.name "vijayrajuyj1"
+                        
+                        # Update the image tag in Helm values.yaml
+                        sed -i 's/tag: .*/tag: '${BUILD_NUMBER}'/g' helm/demo/values.yaml
+                        git add helm/demo/values.yaml
+                        git commit -m "Update deployment image to version ${BUILD_NUMBER}"
+                        git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git HEAD:main
                     '''
                 }
             }
         }
     }
+
     post {
         success {
-            echo 'Deployment to production successful!'
+            echo 'Pipeline succeeded!'
         }
         failure {
-            echo 'Deployment failed. Check the logs for more details.'
+            echo 'Pipeline completed with errors, but continuing.'
         }
     }
 }
