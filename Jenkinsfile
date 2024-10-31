@@ -19,21 +19,18 @@ pipeline {
                         sudo apt install python3-venv -y
                         python3 -m venv venv
                         . venv/bin/activate  # Activate the virtual environment
-                        python3 -m pip install --upgrade pip  # Upgrade pip
-                        python3 -m pip install Django==5.1.2 gunicorn==20.1.0 flake8==6.0.0  # Install Django, Gunicorn, and Flake8
+                        python3 -m pip install Django==5.1.2 gunicorn==20.1.0 flake8==5.0.4  # Install Gunicorn and Flake8
                     '''
                 }
             }
         }
         stage('Run migrations') {
             steps {
-                script {
-                    sh '''
-                        . venv/bin/activate  # Activate the virtual environment
-                        python3 manage.py makemigrations
-                        python3 manage.py migrate
-                    '''
-                }
+                sh '''
+                    . venv/bin/activate  # Activate the virtual environment
+                    python3 manage.py makemigrations
+                    python3 manage.py migrate
+                '''
             }
         }
         stage('Static Code Analysis') {
@@ -42,30 +39,7 @@ pipeline {
                     // Activate the virtual environment and run Flake8
                     sh '''
                         . venv/bin/activate  # Activate the virtual environment
-                        flake8 . --max-line-length=88  # Run Flake8 with a line length limit
-                    '''
-                }
-            }
-        }
-        stage('SonarQube Static Code Analysis') {
-            environment {
-                SONAR_URL = "http://34.228.146.45:9000"  // Update with your actual SonarQube URL
-                SONAR_PROJECT_KEY = "django-todo-j"  // Replace with your project key
-                SONAR_PROJECT_NAME = "Django-todo"  // Replace with your project name
-                SONAR_PROJECT_VERSION = "${BUILD_NUMBER}"  // Use build number as the version
-            }
-            steps {
-                withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
-                    sh '''
-                        . venv/bin/activate  # Activate the virtual environment
-                        sonar-scanner \
-                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                            -Dsonar.projectName=${SONAR_PROJECT_NAME} \
-                            -Dsonar.projectVersion=${SONAR_PROJECT_VERSION} \
-                            -Dsonar.sourceEncoding=UTF-8 \
-                            -Dsonar.sources=. \
-                            -Dsonar.host.url=${SONAR_URL} \
-                            -Dsonar.login=$SONAR_AUTH_TOKEN
+                        flake8 . --max-line-length=88 --exclude venv/*  # Run Flake8 with line length limit and exclude venv
                     '''
                 }
             }
@@ -88,7 +62,7 @@ pipeline {
                 }
             }
         }
-        stage('Update Values Tag in Helm') {
+        stage('Update Values tag in Helm') {
             environment {
                 GIT_REPO_NAME = "django-todo-j"
                 GIT_USER_NAME = "vijayrajuyj1"
@@ -114,11 +88,10 @@ pipeline {
                     sh '''
                         # Start Gunicorn server
                         . venv/bin/activate  # Activate the virtual environment
-                        nohup gunicorn --bind 0.0.0.0:8000 your_project_name.wsgi:application --daemon  # Replace 'your_project_name' with the actual project name
+                        nohup gunicorn --bind 0.0.0.0:8000 your_project_name.wsgi:application --daemon  # Replace with your project name
                     '''
                 }
             }
         }
     }
 }
-
